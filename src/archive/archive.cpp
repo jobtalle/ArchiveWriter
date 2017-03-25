@@ -68,6 +68,11 @@ std::vector<char> Archive::writeStringTab() const
 		offset += entry.size;
 	}
 
+	result.push_back('\0');
+
+	const entry lastEntry = entries.at(entries.size() - 1);
+	result.insert(result.end(), (const char*)&lastEntry.size, (const char*)&lastEntry.size + sizeof(lastEntry.size));
+
 	return result;
 }
 
@@ -146,11 +151,12 @@ void Archive::compile(const std::string objects, const std::string file) const
 			archive.insert(archive.end(), file.begin(), file.end());
 		}
 
+		mz_ulong uncompressedSize = (mz_ulong)archive.size();
 		mz_ulong compressedSize = mz_compressBound((mz_ulong)archive.size());
 		char *compressed = new char[compressedSize];
 		
 		mz_compress2((unsigned char*)compressed, &compressedSize, (unsigned char*)archive.data(), (mz_ulong)archive.size(), 10);
-		out.write((const char*)&compressedSize, sizeof(uint64_t));
+		out.write((const char*)&uncompressedSize, sizeof(uncompressedSize));
 		out.write(compressed, compressedSize);
 		
 		std::cout << "Wrote batch with " << ((float)archive.size() / compressedSize) * 100 << "% compression" << std::endl;

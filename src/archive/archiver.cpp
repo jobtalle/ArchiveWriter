@@ -56,4 +56,6 @@ void archiver::compile(int argc, char **argv)
 	Archive archive = Archive(fileNames, flags);
 	if(archive.writeObjects(argv[ARGUMENT_OBJECTS]))
 		archive.compile(argv[ARGUMENT_OBJECTS], argv[ARGUMENT_OUTPUT]);
+	else
+		std::cout << argv[ARGUMENT_OUTPUT] << " up to date" << std::endl;
 }
