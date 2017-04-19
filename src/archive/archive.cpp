@@ -148,7 +148,7 @@ void Archive::compile(const std::string objects, const std::string file) const
 			std::vector<char> file((std::istreambuf_iterator<char>(sourceIn)), (std::istreambuf_iterator<char>()));
 			sourceIn.close();
 
-			archive.insert(archive.end(), file.begin(), file.end());
+			archive.insert(archive.end(), file.begin() + sizeof(uint32_t), file.end());
 		}
 
 		mz_ulong uncompressedSize = (mz_ulong)archive.size();
