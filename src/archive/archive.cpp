@@ -2,6 +2,7 @@
 #include <archive/formatter.h>
 #include <xxhash/xxhash.h>
 #include <miniz/miniz.h>
+#include <utils/stringUtils.h>
 
 #include <algorithm>
 #include <iostream>
@@ -28,8 +29,7 @@ void Archive::writeObject(
 	entry &entry,
 	const uint32_t hash) const
 {
-	const std::string extension = entry.path.substr(entry.path.length() - 3, 3);
-	const std::vector<char> formatted = formatter::format(file, extension);
+	const std::vector<char> formatted = formatter::format(file, entry.path);
 
 	std::ofstream out(object, std::ios::binary);
 	out.write((const char*)&hash, sizeof(uint32_t));
@@ -80,7 +80,8 @@ Archive::Archive(const std::vector<std::string> fileNames, const uint8_t flags)
 :flags(flags)
 {
 	for(const auto &file : fileNames)
-		entries.push_back(createEntry(file));
+		if(utils::existsIn(utils::getExtension(file), formatter::whitelist))
+			entries.push_back(createEntry(file));
 
 	std::sort(entries.begin(), entries.end());
 }
