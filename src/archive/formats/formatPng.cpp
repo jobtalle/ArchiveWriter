@@ -8,18 +8,28 @@
 
 std::vector<char> formatter::formatPng(std::vector<char> file, const std::string &name)
 {
+	struct HeaderFrame
+	{
+		uint32_t duration;
+		uint32_t x, y;
+	};
+
+	struct Header
+	{
+		uint32_t width, height;
+		uint32_t frameWidth, frameHeight;
+		uint32_t frameCount;
+	};
+
 	unsigned char *result;
-	uint32_t width, height;
+	Header header;
+	HeaderFrame *frames = nullptr;
 	const std::string json = name.substr(0, name.length() - utils::getExtension(name).length()) + "json";
 
-	lodepng_decode_memory(&result, &width, &height, (unsigned char*)file.data(), file.size(), LCT_RGBA, 8);
+	// Load pixels from PNG
+	lodepng_decode_memory(&result, &header.width, &header.height, (unsigned char*)file.data(), file.size(), LCT_RGBA, 8);
 
-	std::vector<char> pixels = std::vector<char>(result, result + width * height * 4);
-	std::vector<char> header(sizeof(uint32_t)* 2);
-
-	memcpy(header.data(), &width, sizeof(uint32_t));
-	memcpy(header.data() + sizeof(uint32_t), &height, sizeof(uint32_t));
-
+	// Read JSON configs
 	std::ifstream inFile(json);
 
 	if(inFile.is_open())
@@ -36,7 +46,7 @@ std::vector<char> formatter::formatPng(std::vector<char> file, const std::string
 
 		std::vector<Frame> frameDatas;
 
-		picojson::value::object &object = config.get<picojson::object>()["frames"].get<picojson::object>();
+		auto &object = config.get<picojson::value::object>()["frames"].get<picojson::object>();
 
 		for(picojson::value::object::const_iterator i = object.begin(); i != object.end(); ++i)
 		{
@@ -51,14 +61,43 @@ std::vector<char> formatter::formatPng(std::vector<char> file, const std::string
 			frameData.height = uint32_t(frameRect["h"].get<double>());
 
 			frameDatas.push_back(frameData);
-
-			std::cout << frameData.duration << std::endl;
 		}
 
-		std::cout << frameDatas.size() << " frames read" << std::endl;
+		header.frameCount = uint32_t(frameDatas.size());
+		header.frameWidth = frameDatas.at(0).width;
+		header.frameHeight = frameDatas.at(0).height;
+
+		frames = new HeaderFrame[header.frameCount];
+
+		for(uint32_t i = 0; i < header.frameCount; ++i)
+		{
+			frames[i].duration = frameDatas.at(i).duration;
+			frames[i].x = frameDatas.at(i).x;
+			frames[i].y = frameDatas.at(i).y;
+		}
+	}
+	else
+	{
+		header.frameCount = 1;
+		header.frameWidth = header.width;
+		header.frameHeight = header.height;
 	}
 
-	pixels.insert(pixels.begin(), header.begin(), header.end());
+	// Copy data to result
+	std::vector<char> pixels = std::vector<char>(result, result + header.width * header.height * 4);
+	std::vector<char> headerBytes = std::vector<char>(
+		sizeof(Header) +
+		(header.frameCount > 1?header.frameCount:0) * sizeof(HeaderFrame));
+
+	memcpy(headerBytes.data(), &header, sizeof(Header));
+
+	if(header.frameCount > 1)
+		for(uint32_t i = 0; i < header.frameCount; ++i)
+			memcpy(headerBytes.data() + sizeof(Header) + sizeof(HeaderFrame) * i, frames + i, sizeof(HeaderFrame));
+
+	pixels.insert(pixels.begin(), headerBytes.begin(), headerBytes.end());
+
+	delete frames;
 
 	return pixels;
 }
