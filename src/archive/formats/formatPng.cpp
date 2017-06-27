@@ -24,23 +24,38 @@ std::vector<char> formatter::formatPng(std::vector<char> file, const std::string
 
 	if(inFile.is_open())
 	{
+		struct Frame
+		{
+			uint32_t duration;
+			uint32_t x, y;
+			uint32_t width, height;
+		};
+
 		picojson::value config;
 		inFile >> config;
 
-		std::vector<float> frameLengths;
+		std::vector<Frame> frameDatas;
 
 		picojson::value::object &object = config.get<picojson::object>()["frames"].get<picojson::object>();
 
 		for(picojson::value::object::const_iterator i = object.begin(); i != object.end(); ++i)
 		{
-			picojson::value::object frame = i->second.get<picojson::value::object>();
+			auto frame = i->second.get<picojson::value::object>();
+			auto frameRect = frame["frame"].get<picojson::value::object>();
+			Frame frameData;
 
-			frameLengths.push_back(1000.0f / float(frame["duration"].get<double>()));
+			frameData.duration = uint32_t(frame["duration"].get<double>());
+			frameData.x = uint32_t(frameRect["x"].get<double>());
+			frameData.y = uint32_t(frameRect["y"].get<double>());
+			frameData.width = uint32_t(frameRect["w"].get<double>());
+			frameData.height = uint32_t(frameRect["h"].get<double>());
 
-			std::cout << frame["duration"] << std::endl;
+			frameDatas.push_back(frameData);
+
+			std::cout << frameData.duration << std::endl;
 		}
 
-		std::cout << frameLengths.size() << " frames read" << std::endl;
+		std::cout << frameDatas.size() << " frames read" << std::endl;
 	}
 
 	pixels.insert(pixels.begin(), header.begin(), header.end());
