@@ -42,7 +42,7 @@ void archiver::compile(int argc, char **argv)
 
 	uint8_t flags = 0;
 
-	for(size_t i = archiver::ARGUMENT_COUNT; i < argc; ++i)
+	for(size_t i = archiver::ARGUMENT_COUNT; i < size_t(argc); ++i)
 	{
 		if(strcmp(argv[i], "batch") == 0)
 			flags |= Archive::ARCHIVE_FLAG_BATCH;
